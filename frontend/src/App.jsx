@@ -8,14 +8,22 @@ import {
   CalendarDays, 
   LogOut, 
   ChevronLeft, 
-  ChevronRight 
+  ChevronRight,
+  Dumbbell,    // Correct icon for Gym
+  Utensils,    // Correct icon for Food
+  Wallet,      // Correct icon for Budget
+  Scale        // Correct icon for Weight
 } from "lucide-react";
 
 import Dashboard from "./pages/Dashboard";
-import StudyLog from "./pages/StudyLog"; // Ensure capitalization matches your file exactly
+import StudyLog from "./pages/StudyLog"; 
 import Schedule from "./pages/Schedule";
 import Goals from "./pages/Goals";
 import NotFound from "./pages/NotFound";
+import GymLog from "./pages/GymLog";
+import FoodLog from "./pages/FoodLog";
+import BudgetLog from "./pages/BudgetLog";
+import WeightTracker from "./pages/WeightTracker";
 
 export default function App() {
   const { user, loading, login, logout } = useAuth();
@@ -30,11 +38,10 @@ export default function App() {
     );
   }
 
-  // Stylish Dark Theme Login Screen
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#09090b] text-white">
-        <div className="bg-[#18181b] p-8 rounded-xl border border-zinc-800 text-center space-y-6 shadow-2xl max-w-sm w-full mx-4">
+        <div className="bg-[#18181b] p-8 rounded-xl border border-zinc-800 text-center space-y-6 shadow-2xl max-sm w-full mx-4">
           <div className="w-16 h-16 bg-[#7c3aed] rounded-2xl mx-auto flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.4)]">
              <span className="text-2xl font-bold">S</span>
           </div>
@@ -53,11 +60,16 @@ export default function App() {
     );
   }
 
+  // Updated navItems with correct icons
   const navItems = [
     { path: "/", label: "Dashboard", icon: LayoutDashboard },
     { path: "/study", label: "Study Log", icon: BookOpen },
     { path: "/schedule", label: "Schedule", icon: CalendarDays },
     { path: "/goals", label: "Goals", icon: Target },
+    { path: "/gym", label: "Gym Log", icon: Dumbbell },
+    { path: "/food", label: "Food Log", icon: Utensils },
+    { path: "/budget", label: "Budget Log", icon: Wallet },
+    { path: "/weight", label: "Weight Tracker", icon: Scale }
   ];
 
   return (
@@ -69,7 +81,6 @@ export default function App() {
           isCollapsed ? "w-20" : "w-64"
         } bg-[#18181b] border-r border-zinc-800 flex flex-col transition-all duration-300 relative shrink-0`}
       >
-        {/* Collapse Toggle Button */}
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="absolute -right-3 top-6 bg-[#18181b] border border-zinc-800 text-zinc-400 hover:text-white rounded-full p-1 z-20 transition-colors shadow-sm"
@@ -77,7 +88,6 @@ export default function App() {
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
 
-        {/* Logo Area */}
         <div className="h-16 flex items-center px-6 border-b border-zinc-800/50 shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#7c3aed] text-white text-sm font-bold shadow-[0_0_12px_rgba(124,58,237,0.4)]">
@@ -91,7 +101,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Navigation Links */}
         <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto overflow-x-hidden">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -117,23 +126,17 @@ export default function App() {
           })}
         </nav>
 
-        {/* User Footer */}
         <div className="p-4 border-t border-zinc-800/50 shrink-0">
           <div className={`flex items-center ${isCollapsed ? 'justify-center flex-col gap-4' : 'gap-3'} overflow-hidden`}>
-            {/* Avatar */}
             <div className="h-8 w-8 shrink-0 rounded-full bg-zinc-800 flex items-center justify-center text-[#7c3aed] text-xs font-bold border border-zinc-700">
                {user.email?.charAt(0).toUpperCase() || "U"}
             </div>
-            
-            {/* User Info (Hidden when collapsed) */}
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium text-zinc-200 truncate">{user.displayName || "User"}</div>
                 <div className="text-[10px] text-zinc-500 truncate">{user.email}</div>
               </div>
             )}
-            
-            {/* Logout Button */}
             <button
               onClick={logout}
               title="Logout"
@@ -147,10 +150,9 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-[#09090b]">
-        {/* Top Header Bar */}
         <header className="h-16 shrink-0 flex items-center px-8 border-b border-zinc-800 bg-[#09090b]/80 backdrop-blur-md sticky top-0 z-10">
           <div className="text-sm font-medium text-zinc-500 flex items-center gap-2">
-            Dashboard 
+            Smart OS 
             <span className="text-zinc-700">/</span> 
             <span className="text-zinc-300">
               {navItems.find(i => i.path === location.pathname)?.label || "Overview"}
@@ -158,18 +160,21 @@ export default function App() {
           </div>
         </header>
         
-        {/* Routed Pages Container */}
         <div className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/study" element={<StudyLog />} />
             <Route path="/schedule" element={<Schedule />} />
             <Route path="/goals" element={<Goals />} />
+            <Route path="/gym" element={<GymLog />} />
+            <Route path="/food" element={<FoodLog />} />
+            <Route path="/budget" element={<BudgetLog />} />
+            <Route path="/weight" element={<WeightTracker />} />
+            {/* Wildcard MUST be last */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>
       </main>
-
     </div>
   );
 }

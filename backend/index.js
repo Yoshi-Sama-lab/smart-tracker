@@ -6,7 +6,7 @@ const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteer.use(StealthPlugin());
 const crypto = require('crypto');
-
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 // Store active scraping sessions
 const activeSessions = new Map();
 
@@ -91,7 +91,177 @@ app.patch("/api/schedule/:id", verifyToken, async (req, res) => {
   await db.collection("schedule").doc(req.params.id).update({ completed: !!req.body.completed, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
   res.json({ success: true });
 });
+// ================================
+// 3.5 LIFE LOGS & AI PARSING
+// ================================
+app.post("/api/lifelog", verifyToken, async (req, res) => {
+  const { textContent, date, logType } = req.body;
 
+  if (!textContent) return res.status(400).json({ error: "No text content provided" });
+
+  try {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
+    });
+
+    let prompt = "";
+
+    // 🏋️‍♂️ GYM PROMPT
+    if (logType === "gym") {
+      prompt = `
+      You are a serious strength and nutrition coach analyzing a client's daily training log.
+      Tone: clear, practical, analytical, and encouraging but not hype. No generic motivation.
+      Use emojis only in section headers. Use short paragraphs and blank lines for readability.
+
+      Analyze the following journal entry: "${textContent}"
+
+      You MUST respond using this exact JSON schema:
+      {
+        "aiSummary": "A detailed markdown coaching report structured exactly into:\\n\\n### 🏋️‍♂️ Workout Review\\n(Use a bulleted list. Bold the exercise name. Comment on strength, volume, and give progression advice.)\\n\\n### 🧠 Big Picture Takeaways\\n(Actionable bullets on what they did right, and what to aim for next.)",
+        "metrics": {
+          "steps": 0, // Extract total steps logged. Default to 0.
+          "setsCompleted": 0, // Estimate total working sets based on the text. Default to 0.
+          "dropSets": 0 // Extract number of drop sets. Default to 0.
+        }
+      }`;
+    } 
+    // 🍳 FOOD PROMPT
+    else if (logType === "food") {
+      prompt = `
+      You are a highly analytical, strict sports nutritionist reviewing a client's daily food log.
+      Tone: clinical, practical, and direct. No fluff. Focus on macro composition and fuel quality.
+      Use emojis only in section headers. Use short paragraphs and bullet points.
+
+      Analyze the following journal entry: "${textContent}"
+
+      You MUST respond using this exact JSON schema:
+      {
+        "aiSummary": "A detailed markdown nutrition report structured exactly into:\\n\\n### 🍳 Macros & Fuel\\n(Breakdown of the protein, carbs, and fats consumed. Comment on the quality of the food choices.)\\n\\n### 🧠 Nutritional Takeaways\\n(Actionable bullets on nutrient timing, hydration, what was good, and what to improve tomorrow.)",
+        "metrics": {
+          "proteinGrams": 0, // Estimate total protein in grams based on the foods listed. Default 0.
+          "calories": 0 // Estimate total calories based on the foods listed. Default 0.
+        }
+      }`;
+    } 
+    // 💸 BUDGET PROMPT (Setting this up for your next module!)
+    else if (logType === "budget") {
+      prompt = `
+      You are a strict financial advisor reviewing a client's daily expense log.
+      Assume a 5000 monthly budget. Tone: practical, analytical, and direct. Use emojis only in section headers.
+
+      Analyze the following journal entry: "${textContent}"
+
+      You MUST respond using this exact JSON schema:
+      {
+        "aiSummary": "A detailed markdown financial report structured exactly into:\\n\\n### 💸 Expense Breakdown\\n(Analysis of what was spent today and if it was necessary.)\\n\\n### 🧠 Financial Takeaways\\n(Actionable bullets on saving habits and budget pacing.)",
+        "metrics": {
+          "foodSpendToday": 0, // Total money spent on food/groceries today. Default 0.
+          "remainingBudget": 5000 // Estimate remaining budget. Default 5000.
+        }
+      }`;
+    }
+
+    const result = await model.generateContent(prompt);
+    const parsedMetrics = JSON.parse(result.response.text());
+
+    // Save to Firestore with the specific logType
+    const docRef = await db.collection(`${logType}_logs`).add({
+      uid: req.user.uid,
+      textContent,
+      aiSummary: parsedMetrics.aiSummary,
+      metrics: parsedMetrics.metrics,
+      date: date || new Date().toISOString(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.json({ success: true, ...parsedMetrics });
+
+  } catch (error) {
+    console.error(`❌ ${logType} Save Error:`, error);
+    res.status(500).json({ error: "Failed to process log" });
+  }
+});
+app.get("/api/lifelog/:logType", verifyToken, async (req, res) => {
+  const { logType } = req.params;
+  try {
+    const snapshot = await db.collection(`${logType}_logs`)
+      .where("uid", "==", req.user.uid)
+      .orderBy("date", "desc")
+      .get();
+
+    let logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // 🔥 FIX: Cumulative Budget Logic
+    if (logType === "budget") {
+      const BASE_BUDGET = 5000;
+      // Sort logs chronologically to calculate the running total
+      const sortedChronologically = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      let runningTotalSpent = 0;
+      const logsWithRunningBudget = sortedChronologically.map(log => {
+        const spentToday = log.metrics?.foodSpendToday || 0;
+        runningTotalSpent += spentToday;
+        return {
+          ...log,
+          metrics: {
+            ...log.metrics,
+            remainingBudget: BASE_BUDGET - runningTotalSpent
+          }
+        };
+      });
+      // Reverse back to newest-first for the UI
+      logs = logsWithRunningBudget.reverse();
+    }
+
+    res.json({ success: true, logs });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch logs" });
+  }
+});
+// ================================
+// 3.6 WEIGHT TRACKER
+// ================================
+app.post("/api/weight", verifyToken, async (req, res) => {
+  const { weight, date } = req.body;
+  
+  if (!weight) return res.status(400).json({ error: "Weight is required" });
+
+  try {
+    const docRef = await db.collection("weight_logs").add({
+      uid: req.user.uid,
+      weight: parseFloat(weight),
+      date: date || new Date().toISOString(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    
+    res.json({ success: true, id: docRef.id });
+  } catch (error) {
+    console.error("❌ Weight Save Error:", error);
+    res.status(500).json({ error: "Failed to save weight" });
+  }
+});
+
+app.get("/api/weight", verifyToken, async (req, res) => {
+  try {
+    const snapshot = await db.collection("weight_logs")
+      .where("uid", "==", req.user.uid)
+      .orderBy("date", "desc") // Newest first
+      .limit(30)
+      .get();
+
+    const logs = snapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      ...doc.data() 
+    }));
+
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error("❌ Fetch Weight Logs Error:", error);
+    res.status(500).json({ error: "Failed to fetch weight logs" });
+  }
+});
 // ================================
 // 4. VTOP INIT (Landing Page)
 // ================================

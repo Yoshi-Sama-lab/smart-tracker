@@ -1,4 +1,14 @@
-import { LayoutDashboard, BookOpen, Target, CalendarDays, LogOut } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  BookOpen, 
+  Target, 
+  CalendarDays, 
+  LogOut,
+  Dumbbell,  // New icon for Gym
+  Utensils,  // New icon for Food
+  Wallet,    // New icon for Budget
+  Scale      // New icon for Weight Tracker
+} from "lucide-react";
 import { NavLink } from "@/components/Navlink";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,6 +29,11 @@ const navItems = [
   { title: "Study Log", url: "/log", icon: BookOpen },
   { title: "Goals", url: "/goals", icon: Target },
   { title: "Schedule", url: "/schedule", icon: CalendarDays },
+  // Replaced Lifelog with the 4 specific tracking modules:
+  { title: "Gym Log", url: "/gym", icon: Dumbbell },
+  { title: "Food Log", url: "/food", icon: Utensils },
+  { title: "Budget", url: "/budget", icon: Wallet },
+  { title: "Weight Tracker", url: "/weight", icon: Scale }
 ];
 
 export function AppSidebar() {

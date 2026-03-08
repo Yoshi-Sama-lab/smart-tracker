@@ -64,3 +64,22 @@
 /* Add slight delays for a cascading effect */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
+
+/* ─── GLOBAL SCROLLBAR THEME ─── */
+::-webkit-scrollbar {
+  width: 8px;  /* Vertical scrollbar width */
+  height: 8px; /* Horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* Keeps the background clean */
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a; /* Zinc-800 to match your borders */
+  border-radius: 10px; /* Smooth rounded pill shape */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7c3aed; /* Neon purple pop on hover! */
+}
