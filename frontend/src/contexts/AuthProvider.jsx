@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
-import { auth, googleProvider } from "../lib/firebase";
+import { auth, googleProvider } from "../lib/firebase.js";
 import { AuthContext } from "../hooks/useAuth";
 
 export function AuthProvider({ children }) {
